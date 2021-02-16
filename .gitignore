@@ -129,4 +129,4 @@ dmypy.json
 .pyre/
 
 .vscode/
-my_sysimage.dylib
+knap_img.dylib

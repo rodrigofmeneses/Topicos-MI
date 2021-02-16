@@ -115,7 +115,7 @@ def experiments_with(file_path, method):
 def run():
     folders = os.listdir('data/instances_knapsack')
 
-    result = open(f'experiments/results{time.strftime("%d%b%Y_%H_%M_%S", time.gmtime())}.txt', 'w')
+    result = open(f'experiments/knapsack/results{time.strftime("%d%b%Y_%H_%M_%S", time.gmtime())}.txt', 'w')
     result.write('instance_name,relaxed_cost,viable_cost,gurobi_cost')
     
     methods = ['relaxed_dantzig', 'viable_dantzig', 'gurobi_knapsack']
