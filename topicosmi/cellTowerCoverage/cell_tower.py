@@ -109,6 +109,12 @@ y = cobertura_telefonica.addVars(len(regioes), vtype=GRB.BINARY, name="Y")
 # Se a torre Xj é construída
 x = cobertura_telefonica.addVars(len(torres), vtype=GRB.BINARY, name="X")
 
+# Função Objetivo
+cobertura_telefonica.setObjective(y.prod(populacao), GRB.MAXIMIZE)
+
+# Restrição orçamental
+cobertura_telefonica.addConstr(x.prod(custo) <= orcamento, name="Orçamento")
+
 # Para cada uma das regiões
 for r in regioes:
     # Torres t que podem atender a Região r.
@@ -122,11 +128,6 @@ for r in regioes:
 # cobertura_telefonica.addConstrs((gp.quicksum(x[t] for t in torres if r in cobertura[t]) >= y[r]
 #                        for r in regioes), name="construir_para_atender")
 
-# Restrição orçamental
-cobertura_telefonica.addConstr(x.prod(custo) <= orcamento, name="Orçamento")
-
-# Função Objetivo
-cobertura_telefonica.setObjective(y.prod(populacao), GRB.MAXIMIZE)
 
 # Escrita do LP
 cobertura_telefonica.write('models/cobertura_telefonica.lp')
