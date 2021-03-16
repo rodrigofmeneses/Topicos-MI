@@ -8,8 +8,8 @@ struct InstanceData
     HR # holding cost return
     PR # remanufacturing cost
     FR # remanufacturing setup cost
-    D # demand cost
-    R # return cost
+    D # demand
+    R # return
 end
 
 export InstanceData, readData
