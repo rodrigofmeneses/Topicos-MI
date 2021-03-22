@@ -14,7 +14,7 @@ mutable struct stdFormVars
 	sr
 end
 
-export standardFormulation, stdFormVars
+export standardFormulation, stdFormVars, multicommodityFormulation
 
 function standardFormulation(inst::InstanceData, params::ParameterData)
 
@@ -108,7 +108,7 @@ function multicommodityFormulation(inst::InstanceData, params::ParameterData)
 		return 0
 	end
 
-	N = 3
+	# N = 4
 	### variables ###
 	@variable(model,0 <= x[t=1:N] <= Inf)
 	@variable(model,0 <= xr[t=1:N] <= Inf)
@@ -118,33 +118,65 @@ function multicommodityFormulation(inst::InstanceData, params::ParameterData)
 	@variable(model,0 <= w[k=1:N, t=1:N] <= Inf)
 	# qtd de itens remanufaturados em k para atender a demanda em t
 	@variable(model,0 <= wr[k=1:N, t=1:N] <= Inf)
-	# qtd itens retornados no periodo k para serem remanufaturados no periodo t
+	# qtd itens remanufaturados no periodo k para atender a demanda no periodo t
 	@variable(model,0 <= or[k=1:N, t=1:N] <= Inf)
 
 	### objective function ###
 	@objective(model, Min, sum(inst.P[t]*x[t] + inst.F[t]*y[t] for t=1:N) + sum(inst.PR[t]*xr[t] + inst.FR[t]*yr[t] for t=1:N ))
 
 	### constraints ###
-	# itens produzidos e remanufaturados devem suprir a demanda em t
+	# 20 itens produzidos e remanufaturados devem suprir a demanda em t
 	@constraint(model, fullfilled[t=1:N], sum(w[k, t] + wr[k, t] for k=1:t) >= inst.D[t])
-	# itens retornados em or para remanufaturar em t são a mesma quantidade dos remanufaturados em t.
+	# 21 itens remanufaturados em or[k] para atender demanda em t são a mesma quantidade dos remanufaturados em t.
 	@constraint(model, returned_real[t=1:N], sum(or[k, t] for k=1:t) == sum(wr[t, k] for k=t:N))
-	# itens retornados em or[k] para remanufaturar em qualquer t não devem exceder itens retornados em k
-	@constraint(model, exceed[k=1:N, t=1:N], sum(or[k, t] for t=k:N) <= inst.R[k])
+	# 22 itens remanufaturados em or[k] não devem exceder itens retornados em k
+	@constraint(model, exceed[k=1:N], sum(or[k, t] for t=k:N) <= inst.R[k])
 	
 	# Ativar as variáveis de setup
-	# produção
-	@constraint(model, setup[k=1:N, t=1:N], w[k, t] <= inst.D[t]*y[k])
-	# remanufaturação
-	@constraint(model, setupR[k=1:N, t=1:N], wr[k, t] <= min(sum(inst.R[j] for j in 1:k), inst.D[t]) * yr[k])
-	# remanufaturação or
-	@constraint(model, setupOR[k=1:N, t=1:N], or[k, t] <= inst.R[k]*yr[t])
+	# 23 produção
+	@constraint(model, setup[k=1:N, t=k:N], w[k, t] <= inst.D[t]*y[k])
+	# 24 remanufaturação
+	@constraint(model, setupR[k=1:N, t=k:N], wr[k, t] <= min(sum(inst.R[j] for j in 1:k), inst.D[t]) * yr[k])
+	# 25 remanufaturação or
+	@constraint(model, setupOR[k=1:N, t=k:N], or[k, t] <= inst.R[k]*yr[t])
 
-	# Por fim, associar as variaveis de multicommodity com as originais do problema
-	@constraint(model, var_x[t=1:N], x[t] == sum(w[t, k] for k in t:N))
-	@constraint(model, var_xr[t=1:N], xr[t] == sum(wr[t, k] for k in t:N))
-	print(model)
+	# 26 - 27 Por fim, associar as variaveis de multicommodity com as originais do problema
+	@constraint(model, varX[t=1:N], x[t] == sum(w[t, k] for k in t:N))
+	@constraint(model, varXR[t=1:N], xr[t] == sum(wr[t, k] for k in t:N))
+	# print(model)
+	# write_to_file(model,"modelo.lp")
+
+	### solving the optimization problem ###
+	optimize!(model)
+
+	if termination_status(model) == MOI.OPTIMAL    
+		println("status = ", termination_status(model))
+	else
+		#error("O modelo não foi resolvido corretamente!")
+		println("status = ", termination_status(model))
+		return 0
+	end
+		
+	### get solutions ###
+	bestsol = objective_value(model)
+	if params.mip == 1
+		bestbound = objective_bound(model)
+		numnodes = node_count(model)
+		gap = MOI.get(model, MOI.RelativeGap())
+	end
+	time = solve_time(model) 
+	
+	### print solutions ###
+	open("saida.txt","a") do f
+		if params.mip == 1
+			write(f,";$(params.form);$bestbound;$bestsol;$gap;$time;$numnodes;$(params.disablesolver) \n")
+		else
+			write(f,";$(params.form);$bestsol;$time;$(params.disablesolver) \n")
+		end
+	end
+
 end
 
-
 end
+
+# julia -O0 --sysimage ecls.dylib -q ecls.jl

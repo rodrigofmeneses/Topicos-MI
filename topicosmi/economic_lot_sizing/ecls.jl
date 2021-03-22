@@ -2,8 +2,8 @@ push!(LOAD_PATH, "modules/")
 
 using Pkg
 
-# using JuMP
-# using Gurobi
+using JuMP
+using Gurobi
 
 import Data
 import Parameters
