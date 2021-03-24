@@ -34,7 +34,7 @@ function readData(instanceFile)
     D = zeros(Int,N)
     R = zeros(Int,N)
     
-      aux = aux+1
+    aux = aux+1
     FR[1] = parse(Float64,tokens[aux])
     for t=2:N
     FR[t] = FR[1]

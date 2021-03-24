@@ -17,7 +17,7 @@ export ParameterData, readInputParameters
 function readInputParameters(ARGS)
   ### Set standard values for the parameters ###
   instName = "instances/52_1.txt"
-  form = "std"
+  form = "mcd"
   mip = 1
   solver = "Gurobi"
   maxtime = 60

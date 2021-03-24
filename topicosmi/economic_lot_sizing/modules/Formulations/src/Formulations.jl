@@ -1,5 +1,4 @@
 module Formulations
-
 using JuMP
 using Gurobi
 using Data
@@ -33,6 +32,13 @@ function standardFormulation(inst::InstanceData, params::ParameterData)
 		return 0
 	end
 
+	println("inst.P: ", inst.P[1:4])
+	println("inst.PR: ", inst.PR[1:4])
+	println("inst.H: ", inst.H[1:4])
+	println("inst.HR: ", inst.HR[1:4])
+
+	# N = 5
+
 	### variables ###
 	@variable(model,0 <= x[t=1:N] <= Inf)
 	@variable(model,0 <= xr[t=1:N] <= Inf)
@@ -58,11 +64,20 @@ function standardFormulation(inst::InstanceData, params::ParameterData)
 	# 
 	@constraint(model, setupR[t=1:N], xr[t] <= min(sum(inst.D[k] for k in t:N),sum(inst.R[k] for k in 1:t))*yr[t])
 	
-
 	#write_to_file(model,"modelo.lp")
-
+	
 	### solving the optimization problem ###
 	optimize!(model)
+
+	open("variaveis_std.txt","w") do f
+		write(f,"x: $(value.(x)) \n" )
+		write(f,"xr: $(value.(xr)) \n")
+	end
+	
+	# println("x: $(value.(x))")
+	# println("xr: $(value.(xr))") 
+	# println("s: $(value.(s))") 
+	# println("sr: $(value.(sr))") 
 
 	if termination_status(model) == MOI.OPTIMAL    
 		println("status = ", termination_status(model))
@@ -71,7 +86,8 @@ function standardFormulation(inst::InstanceData, params::ParameterData)
 		println("status = ", termination_status(model))
 		return 0
 	end
-		
+
+
 	### get solutions ###
 	bestsol = objective_value(model)
 	if params.mip == 1
@@ -108,7 +124,20 @@ function multicommodityFormulation(inst::InstanceData, params::ParameterData)
 		return 0
 	end
 
-	# N = 4
+	P = zeros(Float64, N)
+	PR = zeros(Float64, N)
+	s = zeros(Float64, N)
+	sr = zeros(Float64, N)
+	
+	M = sum( inst.HR[t] * sum(inst.R[k] for k in 1:t) - inst.H[t] * sum(inst.D[k] for k in 1:t) for t in 1:N)
+	for t=1:N
+		P[t] = inst.P[t] + sum(inst.H[j] for j in t:N)
+		PR[t] = inst.PR[t] + sum(inst.H[j] for j in t:N) - sum(inst.HR[j] for j in t:N)
+	end
+
+	println("M: ", M)
+	
+	# N = 3
 	### variables ###
 	@variable(model,0 <= x[t=1:N] <= Inf)
 	@variable(model,0 <= xr[t=1:N] <= Inf)
@@ -122,8 +151,7 @@ function multicommodityFormulation(inst::InstanceData, params::ParameterData)
 	@variable(model,0 <= or[k=1:N, t=1:N] <= Inf)
 
 	### objective function ###
-	@objective(model, Min, sum(inst.P[t]*x[t] + inst.F[t]*y[t] for t=1:N) + sum(inst.PR[t]*xr[t] + inst.FR[t]*yr[t] for t=1:N ))
-
+	@objective(model, Min, sum(P[t]*x[t] + inst.F[t]*y[t] for t=1:N) + sum(PR[t]*xr[t] + inst.FR[t]*yr[t] for t=1:N)) + M
 	### constraints ###
 	# 20 itens produzidos e remanufaturados devem suprir a demanda em t
 	@constraint(model, fullfilled[t=1:N], sum(w[k, t] + wr[k, t] for k=1:t) >= inst.D[t])
@@ -143,11 +171,24 @@ function multicommodityFormulation(inst::InstanceData, params::ParameterData)
 	# 26 - 27 Por fim, associar as variaveis de multicommodity com as originais do problema
 	@constraint(model, varX[t=1:N], x[t] == sum(w[t, k] for k in t:N))
 	@constraint(model, varXR[t=1:N], xr[t] == sum(wr[t, k] for k in t:N))
-	# print(model)
-	# write_to_file(model,"modelo.lp")
-
 	### solving the optimization problem ###
+	# print(model)
 	optimize!(model)
+	
+	# 
+	# for t=1:N
+	# 	s[t] = sum(getvalue(model, x[k]) for k in 1:t) + sum(getvalue(model, xr[k]) for k in 1:t) - sum(inst.D[k] for k in 1:t)
+	# 	sr[t] = sum(inst.R[k] for k in 1:t) - sum(getvalue(model, xr[k]) for k in 1:t)
+	# end
+	open("variaveis_mcd.txt","w") do f
+		write(f,"x: $(value.(x)) \n" )
+		write(f,"xr: $(value.(xr)) \n")
+	end
+	# println("x: $(value.(x))")
+	# println("xr: $(value.(xr))") 
+	# println("s: $(value.(s))")
+	# println("sr: $(value.(sr))")
+
 
 	if termination_status(model) == MOI.OPTIMAL    
 		println("status = ", termination_status(model))
@@ -165,7 +206,9 @@ function multicommodityFormulation(inst::InstanceData, params::ParameterData)
 		gap = MOI.get(model, MOI.RelativeGap())
 	end
 	time = solve_time(model) 
-	
+
+	 
+
 	### print solutions ###
 	open("saida.txt","a") do f
 		if params.mip == 1
