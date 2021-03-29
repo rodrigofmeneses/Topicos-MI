@@ -151,7 +151,7 @@ function multicommodityFormulation(inst::InstanceData, params::ParameterData)
 	@variable(model,0 <= or[k=1:N, t=1:N] <= Inf)
 
 	### objective function ###
-	@objective(model, Min, sum(P[t]*x[t] + inst.F[t]*y[t] for t=1:N) + sum(PR[t]*xr[t] + inst.FR[t]*yr[t] for t=1:N)) + M
+	@objective(model, Min, sum(P[t]*x[t] + inst.F[t]*y[t] for t=1:N) + sum(PR[t]*xr[t] + inst.FR[t]*yr[t] for t=1:N) + M)
 	### constraints ###
 	# 20 itens produzidos e remanufaturados devem suprir a demanda em t
 	@constraint(model, fullfilled[t=1:N], sum(w[k, t] + wr[k, t] for k=1:t) >= inst.D[t])
